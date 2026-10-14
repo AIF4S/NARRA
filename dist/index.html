@@ -1,0 +1,731 @@
+<!doctype html>
+<html lang="en" class="site-locked">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <meta name="robots" content="noindex, nofollow, noarchive, nosnippet" />
+    <meta name="referrer" content="no-referrer" />
+    <meta name="description" content="NARRA: Self-Adapting Video World Models at Test Time. Official project page, method overview, and video results." />
+    <title>NARRA · Self-Adapting Video World Models at Test Time</title>
+    <script src="./assets/access-gate.js?v=4" defer></script>
+    <script src="./assets/theme.js"></script>
+    <link rel="stylesheet" href="./styles.css" />
+    <link rel="stylesheet" href="./assets/method.css" />
+    <link
+      rel="icon"
+      type="image/svg+xml"
+      href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 64 64'%3E%3Crect width='64' height='64' rx='14' fill='%2309060f'/%3E%3Cpath d='M10 40h10l8-16h8l8 16h10' stroke='%23c9a8ff' stroke-width='4' fill='none' stroke-linecap='round' stroke-linejoin='round'/%3E%3C/svg%3E"
+    />
+    <script src="./assets/site.js" defer></script>
+    <script src="./assets/method.js" defer></script>
+  </head>
+  <body>
+    <section class="access-gate" aria-label="Password protected site">
+      <form class="access-card" id="access-form" novalidate>
+        <div class="access-controls">
+          <div class="access-input-wrap">
+            <input
+              id="access-password"
+              name="password"
+              type="password"
+              autocomplete="current-password"
+              placeholder="Password"
+              aria-label="Password"
+              required
+              autofocus
+            />
+            <button class="access-visibility" id="access-visibility" type="button" aria-pressed="false">Show</button>
+          </div>
+          <button class="access-submit" type="submit">Enter</button>
+        </div>
+        <p class="access-error" id="access-error" role="alert" aria-live="polite"></p>
+      </form>
+    </section>
+
+    <header class="hero">
+      <h1 class="logo" role="img" aria-label="NARRA"></h1>
+      <p class="tagline">Self-Adapting Video World Models at Test Time</p>
+      <p class="lede">
+        NARRA adapts a video world model to its own rollout at test time, keeping scenes consistent over minute-long
+        camera paths.
+      </p>
+      <div class="authors" aria-label="Authors and affiliations">
+        <p>
+          <span>Paula Arguello<sup>1</sup></span>
+          <span>Ali Behrouz<sup>2</sup></span>
+          <span>Vahab Mirrokni<sup>2</sup></span>
+          <span>Mahdi Soltanolkotabi<sup>1,2</sup></span>
+        </p>
+        <p class="affiliations">
+          <span><sup>1</sup><i class="logo-usc" role="img" aria-label="University of Southern California"></i></span>
+          <span><sup>2</sup><img class="logo-google" src="./assets/logos/google.svg" alt="Google" /><span class="research">Research</span></span>
+        </p>
+      </div>
+      <!-- Links are pending until the arXiv ID and public code URL exist: set href and remove aria-disabled. -->
+      <nav class="links" aria-label="Paper and code">
+        <a class="btn" aria-disabled="true" title="Link coming soon">
+          <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M6 2h9l5 5v15H6z M14 2v6h6 M9 13h8 M9 17h8" /></svg>
+          arXiv <span class="soon">soon</span>
+        </a>
+        <a class="btn" aria-disabled="true" title="Link coming soon">
+          <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M8 7l-5 5 5 5 M16 7l5 5-5 5 M14 4l-4 16" /></svg>
+          Code <span class="soon">soon</span>
+        </a>
+      </nav>
+    </header>
+
+    <nav class="toc" aria-label="Sections">
+      <a href="#hollywood">Highlight</a>
+      <a href="#method">Method</a>
+      <a href="#long-horizon">60 s results</a>
+      <a href="#sana-wm-60s">vs. backbone</a>
+      <a href="#short-horizon">16 s results</a>
+      <a href="#baselines-16s">Baselines</a>
+      <a href="#bibtex">BibTeX</a>
+      <button class="theme-toggle" type="button" aria-label="Switch between light and dark mode" title="Light / dark mode"></button>
+    </nav>
+
+    <main>
+      <section id="hollywood" class="section hollywood-section">
+        <div class="section-head">
+          <h2 class="problem">Video world models drift over long rollouts: when the camera returns to a place it has already seen, the scene has changed.</h2>
+        </div>
+
+        <figure class="card feature-card compare">
+          <div class="frame">
+            <video muted loop playsinline preload="metadata" tabindex="0" poster="./media/posters/compare_hollywood-blue-cadillac-60s.jpg" src="./media/compare/hollywood-blue-cadillac-60s.mp4"></video>
+            <div class="hud mono" aria-hidden="true"><span>Backbone context</span><span class="narra">NARRA</span></div>
+            <div class="timeline" aria-hidden="true"><span class="tc mono">00:00 / 01:00</span><div class="bar"><i></i></div></div>
+          </div>
+          <figcaption>
+            <h3>Hollywood blue Cadillac</h3>
+            <p>Forward 6 m · left look · return to the initial pose</p>
+          </figcaption>
+        </figure>
+      </section>
+
+      <section id="method" class="section method-section mw">
+        <div class="section-head">
+          <h2>Proposed Method</h2>
+          <p>
+            NARRA treats its first rollout as self-supervised data and adapts part of the model before the final generation.
+          </p>
+        </div>
+
+        <!-- Source diagram: each method part below shows a cropped, animated copy of it. -->
+        <template id="mw-diagram">
+          <svg class="mw-stage" data-step="0" data-n="0" viewBox="0 0 1200 600" role="img"
+              aria-label="NARRA pipeline: inputs, frozen world model rollout, self-supervised nested test-time adaptation, memory caching, camera-return consistency and final generation.">
+              <defs>
+                <marker id="ah" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="6" markerHeight="6" orient="auto-start-reverse"><path d="M0 0L10 5L0 10z" class="ah" /></marker>
+                <marker id="ah-v" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="6" markerHeight="6" orient="auto-start-reverse"><path d="M0 0L10 5L0 10z" class="ah-v" /></marker>
+                <marker id="ah-c" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="6" markerHeight="6" orient="auto-start-reverse"><path d="M0 0L10 5L0 10z" class="ah-c" /></marker>
+                <marker id="ah-r" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="6" markerHeight="6" orient="auto-start-reverse"><path d="M0 0L10 5L0 10z" class="ah-r" /></marker>
+                <clipPath id="round" clipPathUnits="objectBoundingBox"><rect width="1" height="1" rx="0.045" ry="0.08" /></clipPath>
+                <path id="traj" d="M478 90 C478 68 470 48 448 34" />
+                <path id="slow-path" d="M600 493 H604 Q612 493 612 501 V582 Q612 590 604 590 H30 Q22 590 22 582 V501 Q22 493 30 493 H52" />
+                <path id="fast-path" d="M530 452 H596 Q606 452 606 462 V530 Q606 540 596 540 H530 Q520 540 520 530 V462 Q520 452 530 452 Z" />
+              </defs>
+
+              <!-- 01 inputs -->
+              <g class="g g-inputs" data-on="1 2">
+                <rect class="panel" x="120" y="14" width="400" height="92" rx="12" />
+                <image href="./assets/method/input.jpg" x="132" y="24" width="131" height="72" clip-path="url(#round)" preserveAspectRatio="xMidYMid slice" />
+                <rect class="chip" x="276" y="26" width="140" height="68" rx="8" />
+                <text class="t-s t-quote" x="346" y="49" text-anchor="middle">“A Colombian farm</text>
+                <text class="t-s t-quote" x="346" y="65" text-anchor="middle">house at the front</text>
+                <text class="t-s t-quote" x="346" y="81" text-anchor="middle">with a sunset…”</text>
+                <use href="#traj" class="traj" marker-start="url(#ah)" marker-end="url(#ah)" />
+                <circle class="traj-start" cx="478" cy="90" r="3" />
+                <circle class="traj-dot" r="4"><animateMotion dur="4s" repeatCount="indefinite" calcMode="linear" keyPoints="0;1;0" keyTimes="0;0.5;1"><mpath href="#traj" /></animateMotion></circle>
+                <text class="t-xs" x="462" y="122" text-anchor="middle">left curve, out &amp; back</text>
+              </g>
+
+              <!-- 02 frozen world model -->
+              <g class="g g-wm" data-on="2">
+                <rect class="panel" x="40" y="132" width="560" height="104" rx="14" />
+                <text class="t-h" x="320" y="154" text-anchor="middle">❄ Pretrained world model</text>
+                <rect class="block" x="54" y="166" width="118" height="56" rx="10" />
+                <rect class="block" x="188" y="166" width="118" height="56" rx="10" />
+                <rect class="block" x="322" y="166" width="118" height="56" rx="10" />
+                <rect class="block" x="456" y="166" width="130" height="56" rx="10" />
+                <text class="t-b" x="113" y="194" text-anchor="middle">GDN</text><text class="t-xs" x="113" y="212" text-anchor="middle">block</text>
+                <text class="t-b" x="247" y="194" text-anchor="middle">GDN</text><text class="t-xs" x="247" y="212" text-anchor="middle">block</text>
+                <text class="t-b" x="381" y="194" text-anchor="middle">GDN</text><text class="t-xs" x="381" y="212" text-anchor="middle">block</text>
+                <text class="t-s" x="521" y="190" text-anchor="middle">Periodic softmax</text><text class="t-s" x="521" y="207" text-anchor="middle">attention</text>
+                <path class="wire" d="M172 194 H186" marker-end="url(#ah)" />
+                <path class="wire" d="M306 194 H320" marker-end="url(#ah)" />
+                <path class="wire" d="M440 194 H454" marker-end="url(#ah)" />
+                <path class="flow" d="M126 236 V258" marker-end="url(#ah)" />
+                <path class="flow" d="M320 236 V258" marker-end="url(#ah)" />
+                <path class="flow" d="M514 236 V258" marker-end="url(#ah)" />
+              </g>
+
+              <!-- frozen rollout frames -->
+              <g class="g g-rollout" data-on="2 3">
+                <g class="shot" transform="translate(40 262)">
+                  <image href="./assets/method/frozen_1.jpg" width="172" height="95" clip-path="url(#round)" preserveAspectRatio="xMidYMid slice" />
+                  <rect class="edge" width="172" height="95" rx="8" /><rect class="badge" x="6" y="6" width="30" height="18" rx="4" /><text class="t-badge" x="21" y="19" text-anchor="middle">1s</text>
+                </g>
+                <g class="shot" transform="translate(234 262)">
+                  <image href="./assets/method/frozen_25.jpg" width="172" height="95" clip-path="url(#round)" preserveAspectRatio="xMidYMid slice" />
+                  <rect class="edge" width="172" height="95" rx="8" /><rect class="badge" x="6" y="6" width="34" height="18" rx="4" /><text class="t-badge" x="23" y="19" text-anchor="middle">25s</text>
+                </g>
+                <g class="shot shot--bad" transform="translate(428 262)">
+                  <image href="./assets/method/frozen_60.jpg" width="172" height="95" clip-path="url(#round)" preserveAspectRatio="xMidYMid slice" />
+                  <rect class="edge" width="172" height="95" rx="8" /><rect class="badge" x="6" y="6" width="34" height="18" rx="4" /><text class="t-badge" x="23" y="19" text-anchor="middle">60s</text>
+                </g>
+                <text class="t-xs t-bad" x="514" y="374" text-anchor="middle">return view drifts</text>
+                <text class="t-xs" x="40" y="374">frozen rollout z<tspan class="sub" dy="4">v</tspan></text>
+              </g>
+
+              <!-- 03 self-supervised signal -->
+              <g class="g g-signal" data-on="3 4">
+                <path class="flow" d="M40 382 Q40 392 52 392 H588 Q600 392 600 382" />
+                <text class="t-m" x="320" y="412" text-anchor="middle">∇ℒ(z<tspan class="sub" dy="4">v</tspan><tspan dy="-4">)</tspan><tspan class="t-xs" dx="10">self-supervised context</tspan></text>
+                <path class="flow flow--r" d="M220 408 C120 408 26 412 26 448 V470 H50" marker-end="url(#ah-r)" />
+              </g>
+
+              <!-- 04 nested test-time adaptation -->
+              <g class="g g-tta" data-on="3 4 5">
+                <rect class="panel" x="40" y="424" width="560" height="136" rx="14" />
+                <text class="t-h" x="320" y="446" text-anchor="middle">Test-time adaptation</text>
+                <text class="t-xs t-slow mono-t slow-count" x="52" y="446" >slow 0/40</text>
+                <text class="t-xs t-fast mono-t fast-count" x="590" y="446" text-anchor="end" >fast 0/2</text>
+
+                <g class="gdn">
+                  <rect class="block" x="54" y="458" width="112" height="72" rx="10" />
+                  <text class="t-m" x="110" y="480" text-anchor="middle">GDN</text>
+                  <rect class="w" x="60" y="490" width="30" height="28" rx="6" /><text class="t-w" x="75" y="509" text-anchor="middle">ω<tspan class="sub" dy="4">q</tspan></text>
+                  <rect class="w" x="95" y="490" width="30" height="28" rx="6" /><text class="t-w" x="110" y="509" text-anchor="middle">ω<tspan class="sub" dy="4">k</tspan></text>
+                  <rect class="w" x="130" y="490" width="30" height="28" rx="6" /><text class="t-w" x="145" y="509" text-anchor="middle">ω<tspan class="sub" dy="4">v</tspan></text>
+                </g>
+                <g class="gdn">
+                  <rect class="block" x="178" y="458" width="112" height="72" rx="10" />
+                  <text class="t-m" x="234" y="480" text-anchor="middle">GDN</text>
+                  <rect class="w" x="184" y="490" width="30" height="28" rx="6" /><text class="t-w" x="199" y="509" text-anchor="middle">ω<tspan class="sub" dy="4">q</tspan></text>
+                  <rect class="w" x="219" y="490" width="30" height="28" rx="6" /><text class="t-w" x="234" y="509" text-anchor="middle">ω<tspan class="sub" dy="4">k</tspan></text>
+                  <rect class="w" x="254" y="490" width="30" height="28" rx="6" /><text class="t-w" x="269" y="509" text-anchor="middle">ω<tspan class="sub" dy="4">v</tspan></text>
+                </g>
+                <g class="gdn">
+                  <rect class="block" x="302" y="458" width="112" height="72" rx="10" />
+                  <text class="t-m" x="358" y="480" text-anchor="middle">GDN</text>
+                  <rect class="w" x="308" y="490" width="30" height="28" rx="6" /><text class="t-w" x="323" y="509" text-anchor="middle">ω<tspan class="sub" dy="4">q</tspan></text>
+                  <rect class="w" x="343" y="490" width="30" height="28" rx="6" /><text class="t-w" x="358" y="509" text-anchor="middle">ω<tspan class="sub" dy="4">k</tspan></text>
+                  <rect class="w" x="378" y="490" width="30" height="28" rx="6" /><text class="t-w" x="393" y="509" text-anchor="middle">ω<tspan class="sub" dy="4">v</tspan></text>
+                </g>
+                <rect class="block" x="426" y="458" width="88" height="72" rx="10" />
+                <text class="t-xs" x="470" y="487" text-anchor="middle">Periodic</text>
+                <text class="t-xs" x="470" y="501" text-anchor="middle">softmax</text>
+                <text class="t-xs" x="470" y="515" text-anchor="middle">attention</text>
+                <rect class="ffn" x="526" y="458" width="40" height="72" rx="10" />
+                <text class="t-s" x="546" y="499" text-anchor="middle">FFN</text>
+                <rect class="delta" x="574" y="468" width="20" height="52" rx="8" />
+                <text class="t-m t-fast" x="584" y="500" text-anchor="middle">δ</text>
+                <path class="wire" d="M166 494 H176" marker-end="url(#ah)" />
+                <path class="wire" d="M290 494 H300" marker-end="url(#ah)" />
+                <path class="wire" d="M414 494 H424" marker-end="url(#ah)" />
+                <path class="wire" d="M514 494 H524" marker-end="url(#ah)" />
+                <path class="wire" d="M566 494 H572" marker-end="url(#ah)" />
+
+                <text class="t-xs t-slow" x="234" y="550" text-anchor="middle">slow updates</text>
+                <text class="t-xs t-fast" x="560" y="554" text-anchor="middle">fast updates</text>
+
+                <use href="#slow-path" class="loop loop--slow" marker-end="url(#ah-v)" />
+                <use href="#fast-path" class="loop loop--fast" />
+                <circle class="dot dot--slow" r="5"><animateMotion dur="7s" repeatCount="indefinite"><mpath href="#slow-path" /></animateMotion></circle>
+                <circle class="dot dot--fast" r="4"><animateMotion dur="1.4s" repeatCount="indefinite"><mpath href="#fast-path" /></animateMotion></circle>
+              </g>
+
+              <!-- adapted weights flow to the generator -->
+              <g class="g g-link" data-on="">
+                <path class="flow" d="M600 436 C620 436 620 420 620 404 V96 C620 84 628 80 638 80" marker-end="url(#ah)" />
+              </g>
+
+              <!-- 06 memory caching -->
+              <g class="g g-memory" data-on="6">
+                <rect class="panel" x="640" y="14" width="540" height="222" rx="14" />
+                <text class="t-h" x="910" y="36" text-anchor="middle">Memory caching</text>
+                <rect class="chip" x="654" y="48" width="284" height="88" rx="10" />
+                <text class="t-s" x="668" y="68">Memory segments <tspan class="t-math">S</tspan><tspan class="sub" dy="4">j</tspan></text>
+                <g class="stack" transform="translate(668 80)"><rect class="tile" x="8" y="0" width="34" height="34" rx="5" /><rect class="tile" x="4" y="4" width="34" height="34" rx="5" /><rect class="tile" x="0" y="8" width="34" height="34" rx="5" /></g>
+                <g class="stack" transform="translate(728 80)"><rect class="tile" x="8" y="0" width="34" height="34" rx="5" /><rect class="tile" x="4" y="4" width="34" height="34" rx="5" /><rect class="tile" x="0" y="8" width="34" height="34" rx="5" /></g>
+                <g class="stack" transform="translate(788 80)"><rect class="tile" x="8" y="0" width="34" height="34" rx="5" /><rect class="tile" x="4" y="4" width="34" height="34" rx="5" /><rect class="tile" x="0" y="8" width="34" height="34" rx="5" /></g>
+                <text class="t-b" x="856" y="108">…</text>
+                <g class="stack" transform="translate(890 80)"><rect class="tile" x="8" y="0" width="34" height="34" rx="5" /><rect class="tile" x="4" y="4" width="34" height="34" rx="5" /><rect class="tile" x="0" y="8" width="34" height="34" rx="5" /></g>
+
+                <rect class="mem" x="952" y="52" width="88" height="72" rx="12" />
+                <text class="t-xs" x="996" y="74" text-anchor="middle">Retrieval</text>
+                <text class="t-b t-math" x="996" y="104" text-anchor="middle">ΔO<tspan class="sub" dy="5">s</tspan></text>
+                <circle class="op" cx="1058" cy="88" r="9" /><circle class="op-dot" cx="1058" cy="88" r="2.2" />
+                <rect class="mem lam" x="1076" y="60" width="32" height="56" rx="10" />
+                <text class="t-b t-math" x="1092" y="96" text-anchor="middle">λ</text>
+
+                <text class="t-s" x="668" y="160">Current segment</text>
+                <g class="stack stack--now" transform="translate(690 170)"><rect class="tile" x="8" y="0" width="34" height="34" rx="5" /><rect class="tile" x="4" y="4" width="34" height="34" rx="5" /><rect class="tile" x="0" y="8" width="34" height="34" rx="5" /></g>
+                <rect class="mem" x="830" y="162" width="104" height="58" rx="12" />
+                <text class="t-xs" x="882" y="181" text-anchor="middle">Output</text>
+                <text class="t-b t-math" x="868" y="210">O<tspan class="sup" x="884" y="200">bi</tspan><tspan class="sub" x="884" y="215">s</tspan></text>
+                <circle class="op" cx="1092" cy="191" r="11" /><path class="op-plus" d="M1085 191 H1099 M1092 184 V198" />
+                <rect class="mem mem--out" x="1120" y="164" width="52" height="54" rx="12" />
+                <text class="t-b t-math" x="1146" y="200" text-anchor="middle">O<tspan class="sub" dy="5">s</tspan></text>
+
+                <path class="wire wire--strong" d="M938 88 H950" marker-end="url(#ah)" />
+                <path class="wire wire--strong" d="M1040 88 H1047" />
+                <path class="wire wire--strong" d="M1067 88 H1074" marker-end="url(#ah)" />
+                <path class="wire wire--strong" d="M1092 116 V178" marker-end="url(#ah)" />
+                <path class="wire wire--strong" d="M740 191 H828" marker-end="url(#ah)" />
+                <path class="wire wire--strong" d="M934 191 H1079" marker-end="url(#ah)" />
+                <path class="wire wire--strong" d="M1103 191 H1118" marker-end="url(#ah)" />
+                <path class="pulse" d="M938 88 H950 M1040 88 H1074 M1092 116 V178" />
+              </g>
+
+              <!-- generation bar -->
+              <g class="g g-gen" data-on="6 7">
+                <rect class="genbar" x="640" y="244" width="540" height="22" rx="11" />
+                <text class="t-xs" x="910" y="259" text-anchor="middle">Generation · adapted model + memory</text>
+                <path class="flow" d="M726 266 V280" marker-end="url(#ah)" />
+                <path class="flow" d="M910 266 V280" marker-end="url(#ah)" />
+                <path class="flow" d="M1094 266 V280" marker-end="url(#ah)" />
+              </g>
+
+              <!-- final frames -->
+              <g class="g g-final" data-on="5 7">
+                <g class="shot" transform="translate(640 282)">
+                  <image href="./assets/method/narra_1.jpg" width="172" height="95" clip-path="url(#round)" preserveAspectRatio="xMidYMid slice" />
+                  <rect class="edge" width="172" height="95" rx="8" /><rect class="badge" x="6" y="6" width="30" height="18" rx="4" /><text class="t-badge" x="21" y="19" text-anchor="middle">1s</text>
+                </g>
+                <g class="shot" transform="translate(824 282)">
+                  <image href="./assets/method/narra_25.jpg" width="172" height="95" clip-path="url(#round)" preserveAspectRatio="xMidYMid slice" />
+                  <rect class="edge" width="172" height="95" rx="8" /><rect class="badge" x="6" y="6" width="34" height="18" rx="4" /><text class="t-badge" x="23" y="19" text-anchor="middle">25s</text>
+                </g>
+                <g class="shot shot--good" transform="translate(1008 282)">
+                  <image href="./assets/method/narra_60.jpg" width="172" height="95" clip-path="url(#round)" preserveAspectRatio="xMidYMid slice" />
+                  <rect class="edge" width="172" height="95" rx="8" /><rect class="badge" x="6" y="6" width="34" height="18" rx="4" /><text class="t-badge" x="23" y="19" text-anchor="middle">60s</text>
+                </g>
+              </g>
+
+              <!-- 05 camera-return consistency -->
+              <g class="g g-camera" data-on="5">
+                <path class="flow" d="M1094 384 C1060 408 760 408 726 384" marker-start="url(#ah)" marker-end="url(#ah)" />
+                <path class="draw" pathLength="1" d="M1094 384 C1060 408 760 408 726 384" />
+                <text class="t-s" x="910" y="420" text-anchor="middle">return-view consistency</text>
+                <rect class="campill" x="790" y="430" width="240" height="26" rx="13" />
+                <text class="t-s" x="910" y="448" text-anchor="middle">Camera return adaptation</text>
+              </g>
+
+              <!-- 07 result -->
+              <g class="g g-result" data-on="7">
+                <mask id="narra-mark" class="alpha-mask" maskUnits="userSpaceOnUse" x="906" y="552" width="120" height="20">
+                  <image href="./assets/narra-mark.png" x="906" y="552" width="120" height="20" preserveAspectRatio="xMidYMid meet" />
+                </mask>
+                <text class="t-s t-bad" x="640" y="494">House before</text>
+                <text class="t-s t-good" x="1072" y="494">House after</text>
+                <text class="t-s" x="1300" y="494">Initial view</text>
+                <g class="shot shot--bad shot--sm" transform="translate(640 502)">
+                  <image href="./assets/method/frozen_60.jpg" width="220" height="121" clip-path="url(#round)" preserveAspectRatio="xMidYMid slice" />
+                  <rect class="edge" width="220" height="121" rx="8" />
+                </g>
+                <path class="wire" d="M868 562 H900" marker-end="url(#ah)" />
+                <rect class="t-logo-fill" x="906" y="552" width="120" height="20" mask="url(#narra-mark)" />
+                <path class="wire" d="M1032 562 H1064" marker-end="url(#ah)" />
+                <g class="shot shot--good shot--sm" transform="translate(1072 502)">
+                  <image href="./assets/method/frozen_60.jpg" width="220" height="121" clip-path="url(#round)" preserveAspectRatio="xMidYMid slice" />
+                  <image class="fix" href="./assets/method/narra_60.jpg" width="220" height="121" clip-path="url(#round)" preserveAspectRatio="xMidYMid slice" />
+                  <rect class="edge" width="220" height="121" rx="8" />
+                </g>
+                <g class="shot shot--good shot--sm" transform="translate(1300 502)">
+                  <image href="./assets/method/narra_1.jpg" width="220" height="121" clip-path="url(#round)" preserveAspectRatio="xMidYMid slice" />
+                  <rect class="edge" width="220" height="121" rx="8" />
+                </g>
+              </g>
+            </svg>
+        </template>
+
+        <div class="mw-parts">
+          <figure class="mw-part" data-step="1">
+            <div class="mw-crop" data-view="108 4 444 130" aria-label="Inputs: image, prompt and palindromic camera trajectory"></div>
+            <figcaption>
+              <p><b>Inputs.</b> NARRA takes the base model&rsquo;s inputs: an image, a prompt and a camera path. Here the path curves gently to the left and then retraces itself, so the last frame should match the first.</p>
+            </figcaption>
+          </figure>
+          <figure class="mw-part" data-step="2">
+            <div class="mw-crop" data-view="28 124 584 258" aria-label="Frozen world model and its rollout at 1, 25 and 60 seconds"></div>
+            <figcaption>
+              <p><b>Frozen rollout.</b> The pretrained SANA-WM backbone renders the full minute once. Back at the starting pose, the house is hidden behind a fence and a tree that were never there.</p>
+            </figcaption>
+          </figure>
+          <figure class="mw-part" data-step="4">
+            <div class="mw-crop" data-view="12 396 612 204" aria-label="Nested adaptation: slow updates of GDN projections, fast updates of the FFN correction"></div>
+            <figcaption>
+              <p><b>Self-supervision.</b> NARRA re-noises its own rollout <i>z</i><sub>v</sub> and learns to denoise it with the flow-matching loss. The gradient ∇ℒ(<i>z</i><sub>v</sub>) is specific to this scene and camera path; no external data is used.</p>
+              <p><b>Nested test-time adaptation.</b> Adaptation runs at two timescales. A fast memory δ, an additive update to
+              the final block&rsquo;s FFN projection, starts from δ<sub>k,0</sub> = ϕ<sub>k</sub> and takes R fast steps with the GDN
+              projections ω fixed (Eq. 3). The slow step then backpropagates through these fast steps to update ω and the
+              initialization ϕ (Eq. 4).</p>
+              <div class="mw-eq">
+                <div class="eq"><div><math display="block"><mrow><msub><mi mathvariant="normal" class="greek">δ</mi><mrow><mi>k</mi><mo>,</mo><mrow><mi>r</mi><mo>+</mo><mn>1</mn></mrow></mrow></msub><mo>=</mo><msub><mi mathvariant="normal" class="greek">δ</mi><mrow><mi>k</mi><mo>,</mo><mi>r</mi></mrow></msub><mo>−</mo><mi mathvariant="normal" class="greek">α</mi><msub><mo>∇</mo><msub><mi mathvariant="normal" class="greek">δ</mi><mrow><mi>k</mi><mo>,</mo><mi>r</mi></mrow></msub></msub><msub><mi mathvariant="normal" class="greek">ℒ</mi><mtext>FM</mtext></msub><mrow><mo>(</mo><msub><mi mathvariant="normal" class="greek">ω</mi><mi>k</mi></msub><mo>,</mo><msub><mi mathvariant="normal" class="greek">δ</mi><mrow><mi>k</mi><mo>,</mo><mi>r</mi></mrow></msub><mo>;</mo><msub><mi>z</mi><mi>v</mi></msub><mo>)</mo></mrow></mrow></math></div><span class="eq-n">(3)</span></div>
+                <div class="eq"><div><math display="block"><mrow><msub><mi mathvariant="normal" class="greek">ω</mi><mrow><mi>k</mi><mo>+</mo><mn>1</mn></mrow></msub><mo>=</mo><msub><mi mathvariant="normal" class="greek">ω</mi><mi>k</mi></msub><mo>−</mo><msub><mi mathvariant="normal" class="greek">η</mi><mi mathvariant="normal" class="greek">ω</mi></msub><msub><mo>∇</mo><msub><mi mathvariant="normal" class="greek">ω</mi><mi>k</mi></msub></msub><msub><mi mathvariant="normal" class="greek">ℒ</mi><mtext>FM</mtext></msub><mrow><mo>(</mo><msub><mi mathvariant="normal" class="greek">ω</mi><mi>k</mi></msub><mo>,</mo><msub><mi mathvariant="normal" class="greek">δ</mi><mrow><mi>k</mi><mo>,</mo><mi>R</mi></mrow></msub><mo>;</mo><msub><mi>z</mi><mi>v</mi></msub><mo>)</mo></mrow></mrow></math><math display="block"><mrow><msub><mi mathvariant="normal" class="greek">ϕ</mi><mrow><mi>k</mi><mo>+</mo><mn>1</mn></mrow></msub><mo>=</mo><msub><mi mathvariant="normal" class="greek">ϕ</mi><mi>k</mi></msub><mo>−</mo><msub><mi mathvariant="normal" class="greek">η</mi><mi mathvariant="normal" class="greek">ϕ</mi></msub><msub><mo>∇</mo><msub><mi mathvariant="normal" class="greek">ϕ</mi><mi>k</mi></msub></msub><msub><mi mathvariant="normal" class="greek">ℒ</mi><mtext>FM</mtext></msub><mrow><mo>(</mo><msub><mi mathvariant="normal" class="greek">ω</mi><mi>k</mi></msub><mo>,</mo><msub><mi mathvariant="normal" class="greek">δ</mi><mrow><mi>k</mi><mo>,</mo><mi>R</mi></mrow></msub><mo>;</mo><msub><mi>z</mi><mi>v</mi></msub><mo>)</mo></mrow></mrow></math></div><span class="eq-n">(4)</span></div>
+              </div>
+            </figcaption>
+          </figure>
+          <figure class="mw-part" data-step="5">
+            <div class="mw-crop" data-view="628 276 556 186" aria-label="Return-view consistency between the first and last frames"></div>
+            <figcaption>
+              <p><b>Camera-return consistency.</b> Return pairs (a, b) in ℋ<sub>v</sub> are frames whose camera poses match
+              after a long gap. The predicted clean latent at the returning frame b is compared with the observed latent at
+              frame a (Eq. 5), and the loss is added to both fast and slow updates (Eq. 6).</p>
+              <div class="mw-eq">
+                <div class="eq"><div><math display="block"><mrow><msubsup><mi mathvariant="normal" class="greek">ℒ</mi><mtext>cam</mtext><mrow><mo>(</mo><mi>v</mi><mo>,</mo><mi>k</mi><mo>)</mo></mrow></msubsup><mo>=</mo><mfrac><mn>1</mn><mrow><mo>|</mo><msub><mi mathvariant="normal" class="greek">ℋ</mi><mi>v</mi></msub><mo>|</mo></mrow></mfrac><munder><mo>∑</mo><mrow><mo>(</mo><mi>a</mi><mo>,</mo><mi>b</mi><mo>)</mo><mo>∈</mo><msub><mi mathvariant="normal" class="greek">ℋ</mi><mi>v</mi></msub></mrow></munder><msub><mi>d</mi><mtext>ret</mtext></msub><mrow><mo>(</mo><msub><mover accent="true"><mi>z</mi><mo>^</mo></mover><mrow><mn>0</mn><mo>,</mo><mi>b</mi></mrow></msub><mo>,</mo><msub><mi>z</mi><mrow><mi>v</mi><mo>,</mo><mi>a</mi></mrow></msub><mo>)</mo></mrow></mrow></math></div><span class="eq-n">(5)</span></div>
+                <div class="eq"><div><math display="block"><mrow><msub><mi mathvariant="normal" class="greek">ℒ</mi><mtext>FM</mtext></msub><mo>+</mo><msub><mi mathvariant="normal" class="greek">γ</mi><mi>c</mi></msub><msub><mi mathvariant="normal" class="greek">ℒ</mi><mtext>cam</mtext></msub></mrow></math></div><span class="eq-n">(6)</span></div>
+              </div>
+            </figcaption>
+          </figure>
+          <figure class="mw-part" data-step="6">
+            <div class="mw-crop" data-view="632 6 552 261" aria-label="Memory caching: retrieval from earlier segments gated by a channel-wise lambda"></div>
+            <figcaption>
+              <p><b>Segment memory.</b> Each earlier segment j is summarized by an independent GDN state <i>S</i><sub>j</sub>.
+              The current segment s retrieves ΔO<sub>s</sub> from these states, scaled per channel by λ.</p>
+              <div class="mw-eq">
+                <div class="eq"><div><math display="block"><mrow><msub><mi>O</mi><mi>s</mi></msub><mo>=</mo><msubsup><mi>O</mi><mi>s</mi><mtext>bi</mtext></msubsup><mo>+</mo><mi mathvariant="normal" class="greek">λ</mi><mo>⊙</mo><mo>Δ</mo><msub><mi>O</mi><mi>s</mi></msub></mrow></math></div><span class="eq-n">(7)</span></div>
+              </div>
+            </figcaption>
+          </figure>
+          <figure class="mw-part" data-step="7">
+            <div class="mw-crop" data-view="632 476 896 154" aria-label="Before and after: the return view now matches the initial view"></div>
+            <figcaption>
+              <p><b>Result.</b> The adapted model regenerates the minute along the same path. At 60 s, the camera and the house are back where they started.</p>
+            </figcaption>
+            <video class="mw-video" controls muted loop playsinline preload="none"
+            poster="./media/posters/compare_v27_01_colombian_hacienda_gentle_curve.jpg"
+            src="./media/compare/v27_01_colombian_hacienda_gentle_curve.mp4"></video>
+            <p class="mw-cap">Left: backbone context. Right: NARRA.</p>
+          </figure>
+        </div>
+
+      </section>
+
+      <section id="long-horizon" class="section">
+        <div class="section-head">
+          <h2>60-Second Results</h2>
+          <p>
+            Each clip is a single uninterrupted 60-second rollout (960 frames, 16 fps).
+          </p>
+        </div>
+
+        <div class="gallery four">
+          <figure class="card">
+            <div class="frame">
+              <video muted loop playsinline preload="none" tabindex="0" poster="./media/posters/v20_09_persia_yazd_windcatcher_lane_pronounced_curve.jpg" src="./media/v20_09_persia_yazd_windcatcher_lane_pronounced_curve.mp4"></video>
+              <div class="timeline" aria-hidden="true"><span class="tc mono">00:00 / 01:00</span><div class="bar"><i></i></div></div>
+            </div>
+            <figcaption><h3>Yazd windcatcher lane</h3></figcaption>
+          </figure>
+
+
+
+
+          <figure class="card">
+            <div class="frame">
+              <video muted loop playsinline preload="none" tabindex="0" poster="./media/posters/v30_01_museum_horse_left_aisle_straight.jpg" src="./media/v30_01_museum_horse_left_aisle_straight.mp4"></video>
+              <div class="timeline" aria-hidden="true"><span class="tc mono">00:00 / 01:00</span><div class="bar"><i></i></div></div>
+            </div>
+            <figcaption><h3>Museum horse hall</h3></figcaption>
+          </figure>
+
+
+          <figure class="card">
+            <div class="frame">
+              <video muted loop playsinline preload="none" tabindex="0" poster="./media/posters/v30_05_voxel_mine_rail_right_lane_gentle_curve.jpg" src="./media/v30_05_voxel_mine_rail_right_lane_gentle_curve.mp4"></video>
+              <div class="timeline" aria-hidden="true"><span class="tc mono">00:00 / 01:00</span><div class="bar"><i></i></div></div>
+            </div>
+            <figcaption><h3>Voxel mine rail</h3></figcaption>
+          </figure>
+
+          <figure class="card">
+            <div class="frame">
+              <video muted loop playsinline preload="none" tabindex="0" poster="./media/posters/v30_08_mars_rover_left_track_pronounced_curve.jpg" src="./media/v30_08_mars_rover_left_track_pronounced_curve.mp4"></video>
+              <div class="timeline" aria-hidden="true"><span class="tc mono">00:00 / 01:00</span><div class="bar"><i></i></div></div>
+            </div>
+            <figcaption><h3>Mars rover track</h3></figcaption>
+          </figure>
+
+
+          <figure class="card">
+            <div class="frame">
+              <video muted loop playsinline preload="none" tabindex="0" poster="./media/posters/v30_20_desert_sports_car_left_road_pronounced_curve.jpg" src="./media/v30_20_desert_sports_car_left_road_pronounced_curve.mp4"></video>
+              <div class="timeline" aria-hidden="true"><span class="tc mono">00:00 / 01:00</span><div class="bar"><i></i></div></div>
+            </div>
+            <figcaption><h3>Desert sports car</h3></figcaption>
+          </figure>
+
+          <figure class="card">
+            <div class="frame">
+              <video muted loop playsinline preload="none" tabindex="0" poster="./media/posters/v30_22_greenhouse_fountain_right_aisle_straight.jpg" src="./media/v30_22_greenhouse_fountain_right_aisle_straight.mp4"></video>
+              <div class="timeline" aria-hidden="true"><span class="tc mono">00:00 / 01:00</span><div class="bar"><i></i></div></div>
+            </div>
+            <figcaption><h3>Greenhouse fountain</h3></figcaption>
+          </figure>
+
+          <figure class="card">
+            <div class="frame">
+              <video muted loop playsinline preload="none" tabindex="0" poster="./media/posters/v31_09_persian_courtyard_left_axis_generated__traj_straight.jpg" src="./media/v31_09_persian_courtyard_left_axis_generated__traj_straight.mp4"></video>
+              <div class="timeline" aria-hidden="true"><span class="tc mono">00:00 / 01:00</span><div class="bar"><i></i></div></div>
+            </div>
+            <figcaption><h3>Persian courtyard</h3></figcaption>
+          </figure>
+
+          <figure class="card">
+            <div class="frame">
+              <video muted loop playsinline preload="none" tabindex="0" poster="./media/posters/v32_10_mediterranean_flower_street_generated__traj_gentle_curve.jpg" src="./media/v32_10_mediterranean_flower_street_generated__traj_gentle_curve.mp4"></video>
+              <div class="timeline" aria-hidden="true"><span class="tc mono">00:00 / 01:00</span><div class="bar"><i></i></div></div>
+            </div>
+            <figcaption><h3>Mediterranean flower street</h3></figcaption>
+          </figure>
+        </div>
+      </section>
+
+      <section id="sana-wm-60s" class="section">
+        <div class="section-head">
+          <h2>Comparison with the Backbone (60 s)</h2>
+          <p>
+            Same scene and camera path. Left: backbone context. Right: NARRA.
+          </p>
+        </div>
+
+        <div class="compare-list">
+          <figure class="card compare">
+            <div class="frame">
+              <video muted loop playsinline preload="none" tabindex="0" poster="./media/posters/compare_animated8_01_coastal_telescope_straight.jpg" src="./media/compare/animated8_01_coastal_telescope_straight.mp4"></video>
+              <div class="hud mono" aria-hidden="true"><span>Backbone context</span><span class="narra">NARRA</span></div>
+              <div class="timeline" aria-hidden="true"><span class="tc mono">00:00 / 01:00</span><div class="bar"><i></i></div></div>
+            </div>
+            <figcaption><h3>Coastal telescope</h3></figcaption>
+          </figure>
+
+          <figure class="card compare">
+            <div class="frame">
+              <video muted loop playsinline preload="none" tabindex="0" poster="./media/posters/compare_v14_04_forest_bicycle_shelter_pronounced_curve.jpg" src="./media/compare/v14_04_forest_bicycle_shelter_pronounced_curve.mp4"></video>
+              <div class="hud mono" aria-hidden="true"><span>Backbone context</span><span class="narra">NARRA</span></div>
+              <div class="timeline" aria-hidden="true"><span class="tc mono">00:00 / 01:00</span><div class="bar"><i></i></div></div>
+            </div>
+            <figcaption><h3>Forest bicycle shelter</h3></figcaption>
+          </figure>
+
+
+          <figure class="card compare">
+            <div class="frame">
+              <video muted loop playsinline preload="none" tabindex="0" poster="./media/posters/compare_v30_01_museum_horse_left_aisle_straight.jpg" src="./media/compare/v30_01_museum_horse_left_aisle_straight.mp4"></video>
+              <div class="hud mono" aria-hidden="true"><span>Backbone context</span><span class="narra">NARRA</span></div>
+              <div class="timeline" aria-hidden="true"><span class="tc mono">00:00 / 01:00</span><div class="bar"><i></i></div></div>
+            </div>
+            <figcaption><h3>Museum hall</h3></figcaption>
+          </figure>
+
+          <figure class="card compare">
+            <div class="frame">
+              <video muted loop playsinline preload="none" tabindex="0" poster="./media/posters/compare_v30_08_mars_rover_left_track_pronounced_curve.jpg" src="./media/compare/v30_08_mars_rover_left_track_pronounced_curve.mp4"></video>
+              <div class="hud mono" aria-hidden="true"><span>Backbone context</span><span class="narra">NARRA</span></div>
+              <div class="timeline" aria-hidden="true"><span class="tc mono">00:00 / 01:00</span><div class="bar"><i></i></div></div>
+            </div>
+            <figcaption><h3>Mars rover track</h3></figcaption>
+          </figure>
+
+          <figure class="card compare">
+            <div class="frame">
+              <video muted loop playsinline preload="none" tabindex="0" poster="./media/posters/compare_v30_26_persian_garden_right_axis_gentle_curve.jpg" src="./media/compare/v30_26_persian_garden_right_axis_gentle_curve.mp4"></video>
+              <div class="hud mono" aria-hidden="true"><span>Backbone context</span><span class="narra">NARRA</span></div>
+              <div class="timeline" aria-hidden="true"><span class="tc mono">00:00 / 01:00</span><div class="bar"><i></i></div></div>
+            </div>
+            <figcaption><h3>Persian garden</h3></figcaption>
+          </figure>
+
+          <figure class="card compare">
+            <div class="frame">
+              <video muted loop playsinline preload="none" tabindex="0" poster="./media/posters/compare_v34_04_archive_globe_right_pronounced_curve.jpg" src="./media/compare/v34_04_archive_globe_right_pronounced_curve.mp4"></video>
+              <div class="hud mono" aria-hidden="true"><span>Backbone context</span><span class="narra">NARRA</span></div>
+              <div class="timeline" aria-hidden="true"><span class="tc mono">00:00 / 01:00</span><div class="bar"><i></i></div></div>
+            </div>
+            <figcaption><h3>Archive globe</h3></figcaption>
+          </figure>
+        </div>
+
+          <figure class="table-card">
+            <div class="table-scroll">
+              <table class="results">
+                <caption>60-second NARRA Benchmark (45 scenes). SANA-WM is the backbone context shown above. N-metrics use temporally stratified revisit pairs. Best value per column in bold.</caption>
+                <thead><tr><th scope="col">Method</th><th scope="col">PSNR <span aria-label="higher is better">↑</span></th><th scope="col">SSIM <span aria-label="higher is better">↑</span></th><th scope="col">MSE <span aria-label="lower is better">↓</span></th><th scope="col">N-PSNR <span aria-label="higher is better">↑</span></th><th scope="col">N-SSIM <span aria-label="higher is better">↑</span></th><th scope="col">N-MSE <span aria-label="lower is better">↓</span></th><th scope="col">VBench <span aria-label="higher is better">↑</span></th></tr></thead>
+                <tbody>
+                  <tr><th scope="row">SANA-WM</th><td>15.498</td><td>0.3617</td><td>2117.8</td><td>16.209</td><td>0.3990</td><td>1931.3</td><td>80.521</td></tr>
+                  <tr class="ours"><th scope="row">NARRA</th><td><b>16.331</b></td><td><b>0.3806</b></td><td><b>1694.0</b></td><td><b>17.157</b></td><td><b>0.4149</b></td><td><b>1521.6</b></td><td><b>81.920</b></td></tr>
+                </tbody>
+              </table>
+            </div>
+          </figure>
+      </section>
+
+      <section id="short-horizon" class="section">
+        <div class="section-head">
+          <h2>16-Second Results</h2>
+          <p>Shorter rollouts across indoor, outdoor and stylized scenes.</p>
+        </div>
+
+        <div class="gallery four">
+          <figure class="card">
+            <div class="frame">
+              <video muted loop playsinline preload="none" tabindex="0" poster="./media/posters/16s_v13_02_mountain_horse_stable_pronounced_curve.jpg" src="./media/16s/v13_02_mountain_horse_stable_pronounced_curve.mp4"></video>
+              <div class="timeline" aria-hidden="true"><span class="tc mono">00:00 / 00:16</span><div class="bar"><i></i></div></div>
+            </div>
+            <figcaption><h3>Mountain horse stable</h3></figcaption>
+          </figure>
+
+          <figure class="card">
+            <div class="frame">
+              <video muted loop playsinline preload="none" tabindex="0" poster="./media/posters/16s_v15_06_fantasy_bird_mount_pronounced_curve.jpg" src="./media/16s/v15_06_fantasy_bird_mount_pronounced_curve.mp4"></video>
+              <div class="timeline" aria-hidden="true"><span class="tc mono">00:00 / 00:16</span><div class="bar"><i></i></div></div>
+            </div>
+            <figcaption><h3>Fantasy bird mount</h3></figcaption>
+          </figure>
+
+          <figure class="card">
+            <div class="frame">
+              <video muted loop playsinline preload="none" tabindex="0" poster="./media/posters/16s_v22_05_colombian_coffee_hacienda_straight.jpg" src="./media/16s/v22_05_colombian_coffee_hacienda_straight.mp4"></video>
+              <div class="timeline" aria-hidden="true"><span class="tc mono">00:00 / 00:16</span><div class="bar"><i></i></div></div>
+            </div>
+            <figcaption><h3>Coffee hacienda</h3></figcaption>
+          </figure>
+
+          <figure class="card">
+            <div class="frame">
+              <video muted loop playsinline preload="none" tabindex="0" poster="./media/posters/16s_v24_01_voxel_coastal_house_road_return_gentle_curve.jpg" src="./media/16s/v24_01_voxel_coastal_house_road_return_gentle_curve.mp4"></video>
+              <div class="timeline" aria-hidden="true"><span class="tc mono">00:00 / 00:16</span><div class="bar"><i></i></div></div>
+            </div>
+            <figcaption><h3>Voxel coastal house</h3></figcaption>
+          </figure>
+
+          <figure class="card">
+            <div class="frame">
+              <video muted loop playsinline preload="none" tabindex="0" poster="./media/posters/16s_v30_23_persian_turquoise_house_left_lane_straight.jpg" src="./media/16s/v30_23_persian_turquoise_house_left_lane_straight.mp4"></video>
+              <div class="timeline" aria-hidden="true"><span class="tc mono">00:00 / 00:16</span><div class="bar"><i></i></div></div>
+            </div>
+            <figcaption><h3>Turquoise house lane</h3></figcaption>
+          </figure>
+
+          <figure class="card">
+            <div class="frame">
+              <video muted loop playsinline preload="none" tabindex="0" poster="./media/posters/16s_v30_21_hotel_piano_left_corridor_straight.jpg" src="./media/16s/v30_21_hotel_piano_left_corridor_straight.mp4"></video>
+              <div class="timeline" aria-hidden="true"><span class="tc mono">00:00 / 00:16</span><div class="bar"><i></i></div></div>
+            </div>
+            <figcaption><h3>Hotel piano corridor</h3></figcaption>
+          </figure>
+
+          <figure class="card">
+            <div class="frame">
+              <video muted loop playsinline preload="none" tabindex="0" poster="./media/posters/16s_v30_19_fantasy_cottage_right_path_pronounced_curve.jpg" src="./media/16s/v30_19_fantasy_cottage_right_path_pronounced_curve.mp4"></video>
+              <div class="timeline" aria-hidden="true"><span class="tc mono">00:00 / 00:16</span><div class="bar"><i></i></div></div>
+            </div>
+            <figcaption><h3>Fantasy cottage path</h3></figcaption>
+          </figure>
+
+          <figure class="card">
+            <div class="frame">
+              <video muted loop playsinline preload="none" tabindex="0" poster="./media/posters/16s_v30_14_hollywood_convertible_left_lane_gentle_curve.jpg" src="./media/16s/v30_14_hollywood_convertible_left_lane_gentle_curve.mp4"></video>
+              <div class="timeline" aria-hidden="true"><span class="tc mono">00:00 / 00:16</span><div class="bar"><i></i></div></div>
+            </div>
+            <figcaption><h3>Convertible boulevard</h3></figcaption>
+          </figure>
+        </div>
+      </section>
+
+      <section id="baselines-16s" class="section">
+        <div class="section-head">
+          <h2>Comparison with World-Model Baselines (16 s)</h2>
+          <p>
+            Top: backbone context and NARRA. Bottom: DreamX-World, ReWorld and WorldPlay.
+          </p>
+        </div>
+
+        <div class="compare-list">
+          <figure class="card compare multi">
+            <div class="frame">
+              <video muted loop playsinline preload="none" tabindex="0" poster="./media/posters/compare16_v13_07_coastal_boat_pier_gentle_curve.jpg" src="./media/compare16/v13_07_coastal_boat_pier_gentle_curve.mp4"></video>
+              <div class="labels mono" aria-hidden="true"><span>Backbone context</span><span class="narra">NARRA</span><span>DreamX-World</span><span>ReWorld</span><span>WorldPlay</span></div>
+              <div class="timeline" aria-hidden="true"><span class="tc mono">00:00 / 00:15</span><div class="bar"><i></i></div></div>
+            </div>
+            <figcaption><h3>Coastal boat pier</h3></figcaption>
+          </figure>
+
+          <figure class="card compare multi">
+            <div class="frame">
+              <video muted loop playsinline preload="none" tabindex="0" poster="./media/posters/compare16_v30_05_voxel_mine_rail_right_lane_gentle_curve.jpg" src="./media/compare16/v30_05_voxel_mine_rail_right_lane_gentle_curve.mp4"></video>
+              <div class="labels mono" aria-hidden="true"><span>Backbone context</span><span class="narra">NARRA</span><span>DreamX-World</span><span>ReWorld</span><span>WorldPlay</span></div>
+              <div class="timeline" aria-hidden="true"><span class="tc mono">00:00 / 00:15</span><div class="bar"><i></i></div></div>
+            </div>
+            <figcaption><h3>Voxel mine rail</h3></figcaption>
+          </figure>
+
+          <figure class="card compare multi">
+            <div class="frame">
+              <video muted loop playsinline preload="none" tabindex="0" poster="./media/posters/compare16_v30_11_echo_park_swan_right_path_straight.jpg" src="./media/compare16/v30_11_echo_park_swan_right_path_straight.mp4"></video>
+              <div class="labels mono" aria-hidden="true"><span>Backbone context</span><span class="narra">NARRA</span><span>DreamX-World</span><span>ReWorld</span><span>WorldPlay</span></div>
+              <div class="timeline" aria-hidden="true"><span class="tc mono">00:00 / 00:15</span><div class="bar"><i></i></div></div>
+            </div>
+            <figcaption><h3>Lakeside swan boats</h3></figcaption>
+          </figure>
+
+          <figure class="card compare multi">
+            <div class="frame">
+              <video muted loop playsinline preload="none" tabindex="0" poster="./media/posters/compare16_v30_20_desert_sports_car_left_road_pronounced_curve.jpg" src="./media/compare16/v30_20_desert_sports_car_left_road_pronounced_curve.mp4"></video>
+              <div class="labels mono" aria-hidden="true"><span>Backbone context</span><span class="narra">NARRA</span><span>DreamX-World</span><span>ReWorld</span><span>WorldPlay</span></div>
+              <div class="timeline" aria-hidden="true"><span class="tc mono">00:00 / 00:15</span><div class="bar"><i></i></div></div>
+            </div>
+            <figcaption><h3>Desert road</h3></figcaption>
+          </figure>
+
+          <figure class="card compare multi">
+            <div class="frame">
+              <video muted loop playsinline preload="none" tabindex="0" poster="./media/posters/compare16_v30_27_desert_teahouse_left_road_gentle_curve.jpg" src="./media/compare16/v30_27_desert_teahouse_left_road_gentle_curve.mp4"></video>
+              <div class="labels mono" aria-hidden="true"><span>Backbone context</span><span class="narra">NARRA</span><span>DreamX-World</span><span>ReWorld</span><span>WorldPlay</span></div>
+              <div class="timeline" aria-hidden="true"><span class="tc mono">00:00 / 00:15</span><div class="bar"><i></i></div></div>
+            </div>
+            <figcaption><h3>Desert teahouse</h3></figcaption>
+          </figure>
+        </div>
+
+          <figure class="table-card">
+            <div class="table-scroll">
+              <table class="results">
+                <caption>16-second comparison on the same 45 scenes. SANA-WM is the backbone context. All methods share conditioning images, captions and camera trajectories. Best value per column in bold.</caption>
+                <thead><tr><th scope="col">Method</th><th scope="col">PSNR <span aria-label="higher is better">↑</span></th><th scope="col">SSIM <span aria-label="higher is better">↑</span></th><th scope="col">MSE <span aria-label="lower is better">↓</span></th><th scope="col">N-PSNR <span aria-label="higher is better">↑</span></th><th scope="col">N-SSIM <span aria-label="higher is better">↑</span></th><th scope="col">VBench <span aria-label="higher is better">↑</span></th><th scope="col">RotErr ° <span aria-label="lower is better">↓</span></th><th scope="col">TransErr <span aria-label="lower is better">↓</span></th><th scope="col">CamMC <span aria-label="lower is better">↓</span></th></tr></thead>
+                <tbody>
+                  <tr><th scope="row">SANA-WM</th><td>16.69</td><td><b>0.423</b></td><td>1543.5</td><td>17.03</td><td><b>0.428</b></td><td><b>85.80</b></td><td><b>0.84</b></td><td>0.539</td><td>0.540</td></tr>
+                  <tr><th scope="row">ReWorld</th><td>12.64</td><td>0.301</td><td>3814.9</td><td>12.79</td><td>0.308</td><td>84.32</td><td>2.33</td><td>2.816</td><td>2.817</td></tr>
+                  <tr><th scope="row">WorldPlay</th><td>12.67</td><td>0.264</td><td>3924.8</td><td>13.03</td><td>0.271</td><td>84.40</td><td>3.65</td><td><b>0.441</b></td><td><b>0.455</b></td></tr>
+                  <tr><th scope="row">DreamX-World</th><td>12.98</td><td>0.341</td><td>3575.8</td><td>13.14</td><td>0.349</td><td>82.99</td><td>3.14</td><td>0.934</td><td>0.946</td></tr>
+                  <tr class="ours"><th scope="row">NARRA</th><td><b>16.72</b></td><td>0.421</td><td><b>1525.2</b></td><td><b>17.04</b></td><td>0.427</td><td>85.70</td><td>0.96</td><td>0.622</td><td>0.623</td></tr>
+                </tbody>
+              </table>
+            </div>
+          </figure>
+      </section>
+
+
+
+      <section id="bibtex" class="section">
+        <div class="section-head">
+          <h2>BibTeX</h2>
+        </div>
+        <div class="bibtex">
+          <button class="copy-bib mono" type="button">Copy</button>
+          <pre><code>@article{arguello2026narra,
+  title   = {NARRA: Self-Adapting Video World Models at Test Time},
+  author  = {Arguello, Paula and Behrouz, Ali and Mirrokni, Vahab and Soltanolkotabi, Mahdi},
+  journal = {arXiv preprint},
+  year    = {2026}
+}</code></pre>
+        </div>
+      </section>
+    </main>
+
+  </body>
+</html>

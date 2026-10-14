@@ -1,0 +1,148 @@
+/* Method section: one cropped, animated part of the diagram per step. Colours come from styles.css tokens. */
+
+/* ---------- figures ---------- */
+
+.mw-stage { display: block; width: 100%; height: auto; overflow: visible; }
+.mw-crop .mw-stage { overflow: hidden; }
+
+/* SVG typography */
+.mw-stage text { fill: var(--text); font-family: Inter, ui-sans-serif, -apple-system, "Segoe UI", sans-serif; }
+.mw-stage .t-h { font-size: 17px; font-weight: 640; }
+.mw-stage .t-b { font-size: 21px; font-weight: 600; }
+.mw-stage .t-m { font-size: 17px; font-weight: 560; }
+.mw-stage .t-s { font-size: 14px; }
+.mw-stage .t-xs { font-size: 13px; fill: var(--muted); }
+.mw-stage .t-quote { font-style: italic; }
+.mw-stage .t-w { font-size: 15px; font-style: italic; fill: var(--slow); }
+.mw-stage .t-math { font-family: "Times New Roman", "STIX Two Math", serif; font-style: italic; }
+.mw-stage .t-s .t-math { font-size: 18px; font-weight: 600; }
+.mw-stage .t-badge { font: 600 12px var(--mono); fill: #fff; }
+.mw-stage .alpha-mask { mask-type: alpha; }
+.mw-stage .t-logo-fill { fill: var(--text); }
+.mw-stage .mono-t { font-family: var(--mono); }
+.mw-stage .t-slow { fill: var(--slow); }
+.mw-stage .t-fast { fill: var(--fast); }
+.mw-stage .t-bad { fill: var(--bad); }
+.mw-stage .t-good { fill: var(--good); }
+.mw-stage .sub, .mw-stage .sup { font-size: 0.68em; }
+
+/* SVG shapes */
+.mw-stage .panel { fill: rgb(var(--ink) / 0.025); stroke: rgb(var(--ink) / 0.16); }
+.mw-stage .chip { fill: rgb(var(--ink) / 0.03); stroke: rgb(var(--ink) / 0.14); }
+.mw-stage .block { fill: rgb(var(--ink) / 0.045); stroke: rgb(var(--ink) / 0.2); }
+.mw-stage .w { fill: color-mix(in srgb, var(--slow) 14%, transparent); stroke: color-mix(in srgb, var(--slow) 55%, transparent); }
+.mw-stage .ffn { fill: color-mix(in srgb, var(--slow) 16%, transparent); stroke: var(--slow); }
+.mw-stage .delta { fill: color-mix(in srgb, var(--fast) 18%, transparent); stroke: var(--fast); }
+.mw-stage .mem { fill: color-mix(in srgb, var(--mem) 12%, transparent); stroke: color-mix(in srgb, var(--mem) 55%, transparent); }
+.mw-stage .mem--out { stroke-width: 2; }
+.mw-stage .tile { fill: rgb(var(--ink) / 0.12); stroke: rgb(var(--ink) / 0.28); }
+.mw-stage .stack--now .tile { fill: rgb(var(--ink) / 0.2); }
+.mw-stage .op { fill: none; stroke: var(--text); stroke-width: 1.4; }
+.mw-stage .op-dot { fill: var(--text); }
+.mw-stage .op-plus { stroke: var(--text); stroke-width: 1.6; }
+.mw-stage .genbar { fill: rgb(var(--ink) / 0.05); stroke: rgb(var(--ink) / 0.14); }
+.mw-stage .campill { fill: rgb(var(--ink) / 0.05); stroke: rgb(var(--ink) / 0.3); }
+.mw-stage .badge { fill: rgba(0, 0, 0, 0.62); }
+.mw-stage .edge { fill: none; stroke: rgb(var(--ink) / 0.22); stroke-width: 1.5; }
+.mw-stage .shot--bad .edge { stroke: var(--bad); stroke-width: 3; }
+.mw-stage .shot--good .edge { stroke: var(--good); stroke-width: 3; }
+.mw-stage .shot--sm .edge { stroke-width: 2.2; }
+
+.mw-stage .ah { fill: var(--wire); }
+.mw-stage .ah-v { fill: var(--slow); }
+.mw-stage .ah-c { fill: var(--fast); }
+.mw-stage .ah-r { fill: var(--bad); }
+.mw-stage .wire { fill: none; stroke: var(--wire); stroke-width: 1.4; }
+.mw-stage .wire--strong { stroke: var(--text); stroke-width: 1.6; }
+.mw-stage .flow { fill: none; stroke: var(--wire); stroke-width: 1.4; stroke-dasharray: 4 5; }
+.mw-stage .flow--r { stroke: var(--bad); }
+.mw-stage .traj { fill: none; stroke: var(--muted); stroke-width: 1.4; stroke-dasharray: 3 4; }
+.mw-stage .traj-dot { fill: var(--lilac); }
+.mw-stage .traj-start { fill: var(--muted); }
+.mw-stage .loop { fill: none; stroke-width: 1.6; stroke-dasharray: 6 6; }
+.mw-stage .loop--slow { stroke: var(--slow); }
+.mw-stage .loop--fast { stroke: var(--fast); }
+.mw-stage .dot { opacity: 0; transition: opacity 0.4s; }
+.mw-stage .dot--slow { fill: var(--slow); }
+.mw-stage .dot--fast { fill: var(--fast); }
+.mw-stage .pulse, .mw-stage .draw { fill: none; stroke-linecap: round; opacity: 0; }
+.mw-stage .pulse { stroke: var(--mem); stroke-width: 3; stroke-dasharray: 10 300; }
+.mw-stage .draw { stroke: var(--good); stroke-width: 3; stroke-dasharray: 1; stroke-dashoffset: 1; }
+
+/* ---------- focus: dim everything that is not part of the current step ---------- */
+
+.mw-stage .g { transition: opacity 0.6s ease; }
+.mw-stage .g:not(.on) { opacity: 0; }
+
+.mw-stage .g.on .loop { animation: mw-march 0.9s linear infinite; }
+.mw-stage[data-step="4"] .dot { opacity: 1; }
+
+@keyframes mw-march { to { stroke-dashoffset: -18; } }
+
+/* 02: frames fade in one after another (opacity only; works on SVG without compositing), the drifted view flags itself */
+.mw-stage[data-step="2"] .g-rollout .shot { animation: mw-enter 0.7s ease-out both; }
+.mw-stage[data-step="2"] .g-rollout .shot:nth-child(2) { animation-delay: 0.45s; }
+.mw-stage[data-step="2"] .g-rollout .shot:nth-child(3) { animation-delay: 0.9s; }
+
+/* 03: gradient label breathes */
+
+/* 04: weights glow while being updated */
+.mw-stage[data-step="4"] .delta { animation: mw-glow-fast 0.7s ease-in-out infinite; }
+@keyframes mw-glow-fast { 50% { fill: color-mix(in srgb, var(--fast) 60%, transparent); } }
+
+/* 05: the return arc draws itself, matched frames light up */
+.mw-stage[data-step="5"] .draw { opacity: 1; animation: mw-draw 1.6s ease-out 0.2s both; }
+.mw-stage[data-step="5"] .g-final .shot:nth-child(1) .edge,
+.mw-stage[data-step="5"] .g-final .shot:nth-child(3) .edge { stroke: var(--good); stroke-width: 3; }
+@keyframes mw-draw { from { stroke-dashoffset: 1; } to { stroke-dashoffset: 0; } }
+
+/* 06: segments enter memory one by one, retrieval pulses to the output */
+.mw-stage[data-step="6"] .stack { animation: mw-enter 0.6s ease-out both; }
+.mw-stage[data-step="6"] .stack:nth-of-type(2) { animation-delay: 0.2s; }
+.mw-stage[data-step="6"] .stack:nth-of-type(3) { animation-delay: 0.4s; }
+.mw-stage[data-step="6"] .stack:nth-of-type(4) { animation-delay: 0.6s; }
+.mw-stage[data-step="6"] .pulse { opacity: 1; animation: mw-travel 2.2s 0.8s linear infinite; }
+@keyframes mw-enter { from { opacity: 0; } }
+@keyframes mw-travel { from { stroke-dashoffset: 10; } to { stroke-dashoffset: -300; } }
+
+/* 07: the drifted return view is repaired */
+.mw-stage[data-step="7"] .fix { animation: mw-repair 1.4s 0.5s ease-out both; }
+@keyframes mw-repair { from { opacity: 0; } }
+
+/* ---------- parts: cropped figure + run-in caption ---------- */
+
+.mw-parts { display: grid; gap: 4.5rem; }
+.mw-part { max-width: 60rem; margin: 0 auto; text-align: center; }
+.mw-part figcaption { max-width: 44rem; margin: 0 auto; }
+.mw-part .mw-crop {
+  /* --w is the cropped viewBox width (set by method.js), so every part is drawn at the same scale. */
+  width: 100%;
+  max-width: calc(var(--w, 600) * 0.95px);
+  margin: 0 auto;
+}
+.mw-part figcaption { padding: 0; }
+.mw-part[data-step="7"] .mw-crop { max-width: calc(var(--w, 600) * 1.05px); }
+.mw-part p { margin: 1.1rem 0 0; color: var(--muted); font-size: 0.95rem; line-height: 1.7; }
+.mw-part b { color: var(--text); font-weight: 640; }
+.mw-part .mw-eq { margin-top: 1.2rem; color: var(--text); }
+.mw-eq .eq { display: grid; grid-template-columns: 2.5rem 1fr 2.5rem; align-items: center; margin-top: 0.4rem; }
+.mw-eq .eq > div { grid-column: 2; overflow-x: auto; }
+.mw-eq .eq-n { color: var(--muted); font-size: 0.85rem; text-align: right; }
+.mw-eq .greek { font-style: italic; }
+.mw-eq math { margin: 0.35rem 0; font-family: "STIX Two Math", "Cambria Math", "Latin Modern Math", serif; font-size: 1.12rem; }
+.mw-video { display: block; width: 100%; max-width: 40rem; margin: 1.4rem auto 0; background: #000; aspect-ratio: 1284 / 352; }
+.mw-part .mw-cap { margin-top: 0.5rem; font-size: 0.8rem; }
+
+/* ---------- responsive ---------- */
+
+@media (max-width: 700px) {
+  .mw-parts { gap: 3.5rem; }
+  .mw-eq .eq { grid-template-columns: 0 1fr 1.8rem; }
+  .mw-eq math { font-size: 0.82rem; }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .mw-stage * { animation: none !important; }
+  .mw-stage .draw { opacity: 1; stroke-dashoffset: 0; }
+  .mw-stage .g { transition: none; }
+}
