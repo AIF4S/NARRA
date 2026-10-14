@@ -3,9 +3,9 @@ set -euo pipefail
 
 site_root="/home/paula/NARRA_website"
 media_root="$site_root/dist/media"
-work_root="/home/paula/NARRA_website_video_optimization_tmp"
-archive_root="/home/paula/NARRA_website_source_archive_20261014/original_videos"
-manifest="/home/paula/NARRA_website_source_archive_20261014/video_optimization.tsv"
+work_root="/tmp/narra_website_video_optimization"
+archive_root="/home/paula/NARRA_assets_archive/original_videos"
+manifest="/home/paula/NARRA_assets_archive/video_optimization.tsv"
 
 mkdir -p "$work_root" "$archive_root" "$(dirname "$manifest")"
 printf 'relative_path\toriginal_bytes\tdelivery_bytes\taction\n' > "$manifest"
