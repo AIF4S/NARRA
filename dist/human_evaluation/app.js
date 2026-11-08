@@ -72,9 +72,9 @@ function capturePlayed(){
 }
 function ready(){
  capturePlayed();
- const watched=draft.watched.every(a=>new Set(a).size>=57);
- $('submit').disabled=!watched||saving;
- $('submit').title=watched?'':'Watch both videos before saving.';
+ const answered=questions.every(([q])=>choices.some(([c])=>c===draft.answers[q]));
+ $('submit').disabled=!answered||saving;
+ $('submit').title=answered?'':'Answer all three questions before saving.';
  $('previous').disabled=index===0||saving;
  $('leave').disabled=saving;
 }
@@ -118,7 +118,7 @@ async function start(e){
 }
 async function submit(e){
  e?.preventDefault();if(saving||!active)return;snapshot();persist();
- if(!draft.watched.every(a=>new Set(a).size>=57)||!questions.every(([q])=>choices.some(([c])=>c===draft.answers[q])))return;
+ if(!questions.every(([q])=>choices.some(([c])=>c===draft.answers[q])))return;
  const t=trial(),payload=structuredClone(draft);pending={id:t.id,payload};saving=true;ready();pause();$('saveStatus').textContent='Saving…';msg('');
  try{
   await api(`/api/answers/${encodeURIComponent(t.id)}`,{method:'PUT',data:payload});
@@ -135,7 +135,7 @@ function recordSpeed(){draft.speed_changes.push({at_video_seconds:videos[0].curr
 $('participant').value=read(`${storageKey}:lastNickname`)||'';
 $('unlockForm').onsubmit=unlock;
 $('startForm').onsubmit=start;$('ratingForm').onsubmit=submit;
-$('ratingForm').onchange=()=>{snapshot();persist();$('saveStatus').textContent='Draft kept on this device';};
+$('ratingForm').onchange=()=>{snapshot();persist();ready();$('saveStatus').textContent='Draft kept on this device';};
 $('play').onclick=()=>playing?pause():play();
 $('restart').onclick=()=>{pause();videos.forEach(v=>v.currentTime=0);play();};
 $('seek').oninput=()=>{pause();videos.forEach(v=>v.currentTime=Number($('seek').value));$('time').textContent=`${format(videos[0].currentTime)} / 1:00`;};
