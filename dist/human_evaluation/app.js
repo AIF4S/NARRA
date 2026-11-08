@@ -9,6 +9,7 @@ const questions=[
 const choices=[['A','Video A'],['B','Video B'],['tie','About the same'],['cannot_judge','Cannot judge']];
 const videos=[$('videoA'),$('videoB')];
 const storageKey=`${C.studyId}:online`;
+const accessKey=`${storageKey}:access`;
 let credentials={},accessToken='',state={drafts:{},responses:{}},session,index=0,draft,active=false,playing=false,buffering=false,saving=false,pending=null;
 let lastTimes=[0,0],lastWall=0,lastPersist=0;
 const msg=text=>{$('message').textContent=text;};
@@ -19,12 +20,13 @@ function read(key){try{return JSON.parse(localStorage.getItem(key)||'null');}cat
 function write(key,value){try{localStorage.setItem(key,JSON.stringify(value));return true;}catch{return false;}}
 function participantKey(){return `${storageKey}:${credentials.nickname?.toLowerCase()}`;}
 function screen(name){for(const s of ['gate','welcome','study','complete'])$(s).hidden=s!==name;$('siteHeader').hidden=name==='gate';document.title=name==='gate'?'':'Video comparison study';window.scrollTo(0,0);}
-function lock(){snapshot();persist();pause();active=false;accessToken='';screen('gate');$('password').focus();}
+function lock(){snapshot();persist();pause();active=false;accessToken='';try{localStorage.removeItem(accessKey);}catch{}screen('gate');$('password').focus();}
+function rememberAccess(token){accessToken=token;write(accessKey,token);}
 async function unlock(e){
  e.preventDefault();$('unlock').disabled=true;msg('');
  try{
   const result=await api('/api/unlock',{method:'POST',data:{password:$('password').value}});
-  accessToken=result.access_token;$('password').value='';screen('welcome');$('participant').focus();
+  rememberAccess(result.access_token);$('password').value='';screen('welcome');$('participant').focus();
  }catch(e){msg(e.message);}finally{$('unlock').disabled=false;}
 }
 async function api(path,{method='GET',data}={}){
@@ -145,3 +147,15 @@ setInterval(()=>{
 document.addEventListener('visibilitychange',()=>{if(document.hidden){pause();snapshot();persist();}});
 window.addEventListener('beforeunload',()=>{snapshot();persist();});
 window.addEventListener('online',()=>{if(pending&&active&&trial().id===pending.id&&!saving)submit();});
+async function restoreAccess(){
+ const saved=read(accessKey);if(typeof saved!=='string'||!saved)return;
+ $('gate').hidden=true;$('unlock').disabled=true;msg('Checking access…');
+ try{
+  const result=await api('/api/unlock',{method:'POST',data:{access_token:saved}});
+  rememberAccess(result.access_token);screen('welcome');msg('');
+ }catch(e){
+  if(e.status===401){lock();msg('');}
+  else{screen('gate');msg(e.message);}
+ }finally{$('unlock').disabled=false;}
+}
+restoreAccess();
