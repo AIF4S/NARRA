@@ -39,7 +39,7 @@ async function api(path,{method='GET',data}={}){
 }
 function persist(){
  if(!credentials.nickname)return;
- if(!write(participantKey(),state))msg('This browser cannot keep a local backup. Stay on this page until your answer is saved online.');
+ if(!write(participantKey(),state))msg('This browser cannot keep unfinished progress. Stay on this page until your answer is saved online.');
 }
 function snapshot(){
  if(!active)return;
@@ -113,11 +113,6 @@ async function submit(e){
  }
 }
 function home(){snapshot();persist();pause();active=false;screen('welcome');msg('');}
-function download(){
- snapshot();persist();
- const data={study_id:C.studyId,nickname:credentials.nickname,exported_at:new Date().toISOString(),responses:state.responses,drafts:state.drafts};
- const a=document.createElement('a');a.href=URL.createObjectURL(new Blob([JSON.stringify(data,null,2)],{type:'application/json'}));a.download=`video-study_${encodeURIComponent(credentials.nickname)}.json`;a.click();setTimeout(()=>URL.revokeObjectURL(a.href),1000);
-}
 function recordSpeed(){draft.speed_changes.push({at_video_seconds:videos[0].currentTime,rate:Number($('speed').value)});draft.speed_changes=draft.speed_changes.slice(-500);}
 $('participant').value=read(`${storageKey}:lastNickname`)||'';
 $('unlockForm').onsubmit=unlock;
@@ -128,7 +123,6 @@ $('restart').onclick=()=>{pause();videos.forEach(v=>v.currentTime=0);lastTimes=[
 $('seek').oninput=()=>{pause();videos.forEach(v=>v.currentTime=Number($('seek').value));lastTimes=videos.map(v=>v.currentTime);$('time').textContent=`${format(videos[0].currentTime)} / 1:00`;};
 $('speed').oninput=()=>{const rate=Number($('speed').value);videos.forEach(v=>v.playbackRate=rate);$('speedValue').value=`${rate}×`;lastTimes=videos.map(v=>v.currentTime);lastWall=performance.now();if(active){recordSpeed();snapshot();persist();}};
 $('previous').onclick=()=>{if(saving)return;snapshot();persist();if(index>0){index--;render();}};
-for(const id of ['download','downloadDone'])$(id).onclick=download;
 for(const id of ['leave','finish'])$(id).onclick=home;
 $('another').onclick=async()=>{$('another').disabled=true;try{await loadSession();}catch(e){msg(e.message);}finally{$('another').disabled=false;}};
 document.querySelectorAll('.expand').forEach(b=>b.onclick=()=>videos[b.dataset.side==='a'?0:1].requestFullscreen?.().catch(()=>{}));

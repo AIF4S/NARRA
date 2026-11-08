@@ -17,12 +17,12 @@
  <div class="study-heading"><div><h1 id="batchLabel"></h1></div><div class="progress"><span id="progressLabel"></span><progress id="progress" max="15"></progress></div></div>
  <div class="videos"><article><div class="video-title"><span class="badge">A</span><span>Video A</span><button class="expand" data-side="a" aria-label="Fullscreen video A">⛶</button></div><video id="videoA" muted playsinline preload="metadata" disablepictureinpicture></video></article><article><div class="video-title"><span class="badge">B</span><span>Video B</span><button class="expand" data-side="b" aria-label="Fullscreen video B">⛶</button></div><video id="videoB" muted playsinline preload="metadata" disablepictureinpicture></video></article></div>
  <div class="playback"><button id="play" class="primary">▶ Play both</button><button id="restart">↺ Replay</button><input id="seek" aria-label="Video position" type="range" min="0" max="60" step="0.1" value="0"><span id="time">0:00 / 1:00</span></div>
- <div class="speed-control"><label for="speed">Playback speed</label><input id="speed" type="range" min="0.5" max="2" step="0.25" value="1"><output id="speedValue" for="speed">1×</output></div>
+ <div class="speed-control"><label for="speed">Playback speed</label><input id="speed" type="range" min="0.5" max="5" step="0.25" value="1"><output id="speedValue" for="speed">1×</output></div>
  <form id="ratingForm"><div id="questions" class="questions"></div><div class="bottom-actions"><button type="button" id="previous">← Previous</button><span id="saveStatus" class="muted" role="status"></span><button type="submit" id="submit" class="primary">Save & next →</button></div></form>
- <div class="file-actions"><button id="download">↓ Download my backup</button><button id="leave">Pause & exit</button></div>
+ <div class="file-actions"><button id="leave">Pause & exit</button></div>
 </section>
-<section id="complete" class="welcome" hidden><h1>Thank you</h1><p class="lead" id="completeMessage">Your answers have been saved. You can finish here or evaluate another set.</p><button class="primary" id="downloadDone">↓ Download my backup</button><button id="another">Evaluate another set →</button><button id="finish">Finish</button><p class="muted">No file needs to be sent. The organizer already has your saved answers.</p></section>
+<section id="complete" class="welcome" hidden><h1>Thank you</h1><p class="lead" id="completeMessage">Your answers have been saved. You can finish here or evaluate another set.</p><button id="another">Evaluate another set →</button><button id="finish">Finish</button><p class="muted">No file needs to be sent. The organizer already has your saved answers.</p></section>
 <p id="message" role="alert"></p>
 </main>
-<script src="config.js"></script><script src="app.js?v=3"></script>
+<script src="config.js"></script><script src="app.js?v=5"></script>
 </body></html>
