@@ -11,7 +11,7 @@ const videos=[$('videoA'),$('videoB')];
 const storageKey=`${C.studyId}:online`;
 const accessKey=`${storageKey}:access`;
 let credentials={},accessToken='',state={drafts:{},responses:{}},session,index=0,draft,active=false,playing=false,buffering=false,saving=false,pending=null;
-let lastTimes=[0,0],lastWall=0,lastPersist=0;
+let lastPersist=0;
 const msg=text=>{$('message').textContent=text;};
 const format=t=>`${Math.floor(t/60)}:${String(Math.floor(t%60)).padStart(2,'0')}`;
 const trial=()=>session.trials[index];
@@ -45,6 +45,7 @@ function persist(){
 }
 function snapshot(){
  if(!active)return;
+ capturePlayed();
  draft.answers=Object.fromEntries(questions.map(([id])=>[id,document.querySelector(`input[name="${id}"]:checked`)?.value||'']));
  state.drafts[trial().id]=draft;
 }
@@ -55,7 +56,22 @@ async function play(){
  playing=true;$('play').textContent='Ⅱ Pause';
  try{await Promise.all(videos.map(v=>v.play()));}catch(e){if(e.name==='AbortError')return;pause();msg('Playback could not start. Try Play both again.');}
 }
+function capturePlayed(){
+ if(!active||!draft)return;
+ // Browser playback ranges survive delayed UI timers and do not credit seeking.
+ videos.forEach((v,i)=>{
+  const coverage=new Float64Array(60),ranges=v.played;
+  for(let r=0;r<ranges.length;r++){
+   const start=Math.max(0,ranges.start(r)),end=Math.min(60,ranges.end(r));
+   for(let s=Math.floor(start);s<Math.ceil(end);s++)coverage[s]+=Math.max(0,Math.min(end,s+1)-Math.max(start,s));
+  }
+  const watched=new Set(draft.watched[i]);
+  for(let s=0;s<60;s++)if(coverage[s]>=0.5)watched.add(s);
+  draft.watched[i]=[...watched].sort((a,b)=>a-b);
+ });
+}
 function ready(){
+ capturePlayed();
  const watched=draft.watched.every(a=>new Set(a).size>=57);
  $('submit').disabled=!watched||saving;
  $('submit').title=watched?'':'Watch both videos before saving.';
@@ -77,7 +93,7 @@ function render(){
   fs.append(options);$('questions').append(fs);
  }
  videos.forEach((v,i)=>{v.src=endpoint(t[i===0?'a':'b']);v.load();v.playbackRate=Number($('speed').value);});
- draft.speed_changes??=[];recordSpeed();lastTimes=[0,0];lastWall=performance.now();$('seek').value=0;$('time').textContent='0:00 / 1:00';
+ draft.speed_changes??=[];recordSpeed();$('seek').value=0;$('time').textContent='0:00 / 1:00';
  $('saveStatus').textContent=t.response?'Saved online':'';msg('');ready();screen('study');
 }
 async function loadSession(){
@@ -121,27 +137,26 @@ $('unlockForm').onsubmit=unlock;
 $('startForm').onsubmit=start;$('ratingForm').onsubmit=submit;
 $('ratingForm').onchange=()=>{snapshot();persist();$('saveStatus').textContent='Draft kept on this device';};
 $('play').onclick=()=>playing?pause():play();
-$('restart').onclick=()=>{pause();videos.forEach(v=>v.currentTime=0);lastTimes=[0,0];play();};
-$('seek').oninput=()=>{pause();videos.forEach(v=>v.currentTime=Number($('seek').value));lastTimes=videos.map(v=>v.currentTime);$('time').textContent=`${format(videos[0].currentTime)} / 1:00`;};
-$('speed').oninput=()=>{const rate=Number($('speed').value);videos.forEach(v=>v.playbackRate=rate);$('speedValue').value=`${rate}×`;lastTimes=videos.map(v=>v.currentTime);lastWall=performance.now();if(active){recordSpeed();snapshot();persist();}};
+$('restart').onclick=()=>{pause();videos.forEach(v=>v.currentTime=0);play();};
+$('seek').oninput=()=>{pause();videos.forEach(v=>v.currentTime=Number($('seek').value));$('time').textContent=`${format(videos[0].currentTime)} / 1:00`;};
+$('speed').oninput=()=>{const rate=Number($('speed').value);videos.forEach(v=>v.playbackRate=rate);$('speedValue').value=`${rate}×`;if(active){recordSpeed();snapshot();persist();}};
 $('previous').onclick=()=>{if(saving)return;snapshot();persist();if(index>0){index--;render();}};
 for(const id of ['leave','finish'])$(id).onclick=home;
 $('another').onclick=async()=>{$('another').disabled=true;try{await loadSession();}catch(e){msg(e.message);}finally{$('another').disabled=false;}};
 document.querySelectorAll('.expand').forEach(b=>b.onclick=()=>videos[b.dataset.side==='a'?0:1].requestFullscreen?.().catch(()=>{}));
 videos.forEach(v=>{
- v.onended=()=>pause();
+ v.onended=()=>{capturePlayed();pause();if(active)ready();};
  v.onerror=()=>{pause();msg('Video could not load. Refresh and resume this set. Your saved answers are safe.');};
  v.onwaiting=()=>{if(playing){buffering=true;videos.forEach(x=>x.pause());$('play').textContent='Loading both…';}};
  v.oncanplay=()=>{if(playing&&buffering&&videos.every(x=>x.readyState>=3)){buffering=false;Promise.all(videos.map(x=>x.play())).catch(e=>{if(e.name!=='AbortError')pause();});$('play').textContent='Ⅱ Pause';}};
 });
 setInterval(()=>{
  if(!active)return;
- const current=performance.now(),wall=(current-lastWall)/1000,times=videos.map(v=>v.currentTime);
+ const current=performance.now(),times=videos.map(v=>v.currentTime);
  if(playing&&!buffering&&!document.hidden&&videos.every(v=>!v.paused&&!v.seeking)){
-  times.forEach((t,i)=>{const delta=t-lastTimes[i];if(delta>0&&delta<wall*videos[i].playbackRate+0.2&&wall<0.7){for(let s=Math.floor(lastTimes[i]);s<=Math.floor(t);s++)if(s>=0&&s<60&&!draft.watched[i].includes(s))draft.watched[i].push(s);}});
   if(Math.abs(times[0]-times[1])>0.15)videos[1].currentTime=times[0];
  }
- lastTimes=times;lastWall=current;$('seek').value=times[0];$('time').textContent=`${format(times[0])} / 1:00`;ready();
+ $('seek').value=times[0];$('time').textContent=`${format(times[0])} / 1:00`;ready();
  if(current-lastPersist>5000){snapshot();persist();lastPersist=current;}
 },150);
 document.addEventListener('visibilitychange',()=>{if(document.hidden){pause();snapshot();persist();}});
