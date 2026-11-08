@@ -1,14 +1,18 @@
 <!doctype html>
 <html lang="en">
-<head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><meta name="referrer" content="no-referrer"><title>Video comparison study</title><link rel="stylesheet" href="style.css"></head>
+<head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><meta name="referrer" content="no-referrer"><title>Video comparison study</title><link rel="stylesheet" href="style.css?v=2"></head>
 <body>
 <header><a class="brand" href="index.html"><span class="mark">◫</span> Video comparison study</a></header>
 <main>
-<section id="welcome" class="welcome">
+<section id="gate" class="welcome password-gate">
+ <h1>NARRA evaluation</h1>
+ <form id="unlockForm" class="setup single-column"><label>Password<input id="password" type="password" required maxlength="200" autocomplete="current-password" autofocus></label><button id="unlock" class="primary" type="submit">Enter →</button></form>
+</section>
+<section id="welcome" class="welcome" hidden>
  <h1>Video comparison study</h1>
 
  <div class="instructions"><h2>Before you start</h2><ol><li>Use a laptop or desktop. Watch both full videos. Judge quality at 1× speed; use the speed slider to review.</li><li>Compare returning objects and places, flicker, and visual quality separately.</li><li>Choose <b>About the same</b> for a tie. Choose <b>Cannot judge</b> if there is not enough evidence—for example, no recognizable return.</li><li>Work independently. Please do not inspect video filenames or discuss preferences during the study.</li></ol><p>Each set has up to 15 comparisons, usually 20–30 minutes. Your answers are saved automatically. Use the same nickname and browser when you return.</p></div>
- <form id="startForm" class="setup"><label>Your nickname<input id="participant" required maxlength="40" placeholder="e.g. Luna" autocomplete="nickname"><small>Use one nickname throughout the study.</small></label><label>Study password<input id="password" type="password" required maxlength="200" autocomplete="current-password"></label><button id="start" class="primary" type="submit">Start / resume →</button></form>
+ <form id="startForm" class="setup single-column"><label>Your nickname<input id="participant" required maxlength="40" placeholder="e.g. Luna" autocomplete="nickname"><small>Use one nickname throughout the study.</small></label><button id="start" class="primary" type="submit">Start / resume →</button></form>
  <p class="muted">Your nickname and ratings are visible to the study organizer. Please use a nickname instead of your full name. Unfinished sets are held for seven days.</p>
 </section>
 <section id="study" hidden>
@@ -22,5 +26,5 @@
 <section id="complete" class="welcome" hidden><h1>Thank you</h1><p class="lead" id="completeMessage">Your answers have been saved. You can finish here or evaluate another set.</p><button class="primary" id="downloadDone">↓ Download my backup</button><button id="another">Evaluate another set →</button><button id="finish">Finish</button><p class="muted">No file needs to be sent. The organizer already has your saved answers.</p></section>
 <p id="message" role="alert"></p>
 </main>
-<script src="config.js"></script><script src="app.js"></script>
+<script src="config.js"></script><script src="app.js?v=2"></script>
 </body></html>

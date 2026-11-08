@@ -9,7 +9,7 @@ const questions=[
 const choices=[['A','Video A'],['B','Video B'],['tie','About the same'],['cannot_judge','Cannot judge']];
 const videos=[$('videoA'),$('videoB')];
 const storageKey=`${C.studyId}:online`;
-let credentials={},state={drafts:{},responses:{}},session,index=0,draft,active=false,playing=false,buffering=false,saving=false,pending=null;
+let credentials={},accessToken='',state={drafts:{},responses:{}},session,index=0,draft,active=false,playing=false,buffering=false,saving=false,pending=null;
 let lastTimes=[0,0],lastWall=0,lastPersist=0;
 const msg=text=>{$('message').textContent=text;};
 const format=t=>`${Math.floor(t/60)}:${String(Math.floor(t%60)).padStart(2,'0')}`;
@@ -18,7 +18,15 @@ const endpoint=path=>`${C.apiBase.replace(/\/$/,'')}${path}`;
 function read(key){try{return JSON.parse(localStorage.getItem(key)||'null');}catch{return null;}}
 function write(key,value){try{localStorage.setItem(key,JSON.stringify(value));return true;}catch{return false;}}
 function participantKey(){return `${storageKey}:${credentials.nickname?.toLowerCase()}`;}
-function screen(name){for(const s of ['welcome','study','complete'])$(s).hidden=s!==name;window.scrollTo(0,0);}
+function screen(name){for(const s of ['gate','welcome','study','complete'])$(s).hidden=s!==name;window.scrollTo(0,0);}
+function lock(){snapshot();persist();pause();active=false;accessToken='';screen('gate');$('password').focus();}
+async function unlock(e){
+ e.preventDefault();$('unlock').disabled=true;msg('');
+ try{
+  const result=await api('/api/unlock',{method:'POST',data:{password:$('password').value}});
+  accessToken=result.access_token;$('password').value='';screen('welcome');$('participant').focus();
+ }catch(e){msg(e.message);}finally{$('unlock').disabled=false;}
+}
 async function api(path,{method='GET',data}={}){
  const controller=new AbortController();const timeout=setTimeout(()=>controller.abort(),25000);
  try{
@@ -82,14 +90,13 @@ async function start(e){
  const nickname=$('participant').value.normalize('NFC').trim();
  const saved=read(`${storageKey}:credentials:${nickname.toLowerCase()}`);
  try{
-  credentials=await api('/api/login',{method:'POST',data:{nickname,password:$('password').value,resume_secret:saved?.resume_secret}});
-  $('password').value='';
+  credentials=await api('/api/login',{method:'POST',data:{nickname,access_token:accessToken,resume_secret:saved?.resume_secret}});
   const stored=write(`${storageKey}:credentials:${credentials.nickname.toLowerCase()}`,credentials);
   write(`${storageKey}:lastNickname`,credentials.nickname);
   if(!stored)msg('Browser storage is unavailable. Keep this tab open to finish your set.');
   state=read(participantKey())||{drafts:{},responses:{}};
   await loadSession();
- }catch(e){msg(e.message);}finally{$('start').disabled=false;}
+ }catch(e){if(e.status===401)lock();msg(e.message);}finally{$('start').disabled=false;}
 }
 async function submit(e){
  e?.preventDefault();if(saving||!active)return;snapshot();persist();
@@ -102,7 +109,7 @@ async function submit(e){
   else{pause();active=false;$('completeMessage').textContent='Your answers have been saved. You can finish here or evaluate another set.';screen('complete');}
  }catch(e){
   saving=false;$('saveStatus').textContent='Not saved online yet';ready();msg(e.message);
-  if(e.status===401){snapshot();persist();pause();active=false;screen('welcome');msg('Please sign in again with the same nickname. Your answer is kept in this browser.');}
+  if(e.status===401){lock();msg('Please enter the password again, then use the same nickname. Your answer is kept in this browser.');}
  }
 }
 function home(){snapshot();persist();pause();active=false;screen('welcome');msg('');}
@@ -113,6 +120,7 @@ function download(){
 }
 function recordSpeed(){draft.speed_changes.push({at_video_seconds:videos[0].currentTime,rate:Number($('speed').value)});draft.speed_changes=draft.speed_changes.slice(-500);}
 $('participant').value=read(`${storageKey}:lastNickname`)||'';
+$('unlockForm').onsubmit=unlock;
 $('startForm').onsubmit=start;$('ratingForm').onsubmit=submit;
 $('ratingForm').onchange=()=>{snapshot();persist();$('saveStatus').textContent='Draft kept on this device';};
 $('play').onclick=()=>playing?pause():play();
