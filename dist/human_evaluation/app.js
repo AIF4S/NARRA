@@ -18,7 +18,7 @@ const endpoint=path=>`${C.apiBase.replace(/\/$/,'')}${path}`;
 function read(key){try{return JSON.parse(localStorage.getItem(key)||'null');}catch{return null;}}
 function write(key,value){try{localStorage.setItem(key,JSON.stringify(value));return true;}catch{return false;}}
 function participantKey(){return `${storageKey}:${credentials.nickname?.toLowerCase()}`;}
-function screen(name){for(const s of ['gate','welcome','study','complete'])$(s).hidden=s!==name;window.scrollTo(0,0);}
+function screen(name){for(const s of ['gate','welcome','study','complete'])$(s).hidden=s!==name;$('siteHeader').hidden=name==='gate';document.title=name==='gate'?'':'Video comparison study';window.scrollTo(0,0);}
 function lock(){snapshot();persist();pause();active=false;accessToken='';screen('gate');$('password').focus();}
 async function unlock(e){
  e.preventDefault();$('unlock').disabled=true;msg('');

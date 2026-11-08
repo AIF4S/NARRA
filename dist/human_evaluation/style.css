@@ -5,4 +5,4 @@
 button,.button{background:#2b2238;border-color:#645077;color:#e5d2ff}.primary{background:var(--accent);border-color:var(--accent);color:#21182c}.expand{background:transparent;color:#d8bff6}.badge{color:#e5d2ff}progress::-webkit-progress-bar{background:#342940;border-radius:5px}progress::-webkit-progress-value{background:var(--accent);border-radius:5px}progress::-moz-progress-bar{background:var(--accent)}
 
 #message{min-height:1.6em}#complete button{margin:6px 8px 6px 0}
-.single-column{grid-template-columns:1fr}.password-gate{max-width:420px;margin:12vh auto 48px}.password-gate h1{font-size:36px;margin-bottom:32px}body:has(#gate:not([hidden])) #message{max-width:420px;margin:0 auto}
+.single-column{grid-template-columns:1fr}.password-gate{max-width:420px;margin:12vh auto 48px}body:has(#gate:not([hidden])) #message{max-width:420px;margin:0 auto}
